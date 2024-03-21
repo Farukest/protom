@@ -1,0 +1,614 @@
+syntax = "proto3";
+
+package helium.poc_mobile;
+
+import "mapper.proto";
+import "hex_boosting.proto";
+import "service_provider.proto";
+
+message speedtest_req_v1 {
+  bytes pub_key = 1;
+  string serial = 2;
+  /// Timestamp of speedtest test in seconds from unix epoch
+  uint64 timestamp = 3;
+  /// Measured upload speed in bytes/sec. <value>*8/10E5 = Mbps
+  uint64 upload_speed = 4;
+  /// Measured download speed in bytes/sec. <value>*8/10E5 = Mbps
+  uint64 download_speed = 5;
+  /// Measured latency in milliseconds
+  uint32 latency = 6;
+
+  bytes signature = 7;
+}
+
+message speedtest_resp_v1 { string id = 1; }
+
+// speedtest report output by ingestor, tagged with received_timestamp
+message speedtest_ingest_report_v1 {
+  // timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  speedtest_req_v1 report = 2;
+}
+
+enum speedtest_verification_result {
+  speedtest_valid = 0;
+  speedtest_gateway_not_found = 1;
+}
+
+message verified_speedtest {
+  speedtest_ingest_report_v1 report = 1;
+  speedtest_verification_result result = 2;
+  // timestamp in millis of when the packet was verified
+  uint64 timestamp = 3;
+}
+
+message cell_heartbeat_req_v1 {
+  // Public key of the hotspot
+  bytes pub_key = 1;
+  string hotspot_type = 2;
+  uint32 cell_id = 3;
+  // Timestamp of heartbeat in seconds from unix epoch
+  uint64 timestamp = 4;
+  double lat = 5;
+  double lon = 6;
+  bool operation_mode = 7;
+  string cbsd_category = 8;
+  string cbsd_id = 9;
+
+  bytes signature = 10;
+
+  // Last known coverage object UUID
+  bytes coverage_object = 11;
+}
+
+message cell_heartbeat_resp_v1 { string id = 1; }
+
+// cell heartbeat report output by ingestor, tagged with received_timestamp
+message cell_heartbeat_ingest_report_v1 {
+  // timestamp in millisconds since unix epoch
+  uint64 received_timestamp = 1;
+  cell_heartbeat_req_v1 report = 2;
+}
+
+message wifi_heartbeat_req_v1 {
+  // Public key of the hotspot
+  bytes pub_key = 1;
+  // Timestamp of heartbeat in seconds from unix epoch
+  uint64 timestamp = 2;
+  double lat = 3;
+  double lon = 4;
+  // Timestamp of location validation in seconds from unix epoch
+  uint64 location_validation_timestamp = 5;
+  bool operation_mode = 6;
+  bytes coverage_object = 7;
+  bytes signature = 8;
+}
+
+message wifi_heartbeat_resp_v1 { string id = 1; }
+
+message wifi_heartbeat_ingest_report_v1 {
+  // timestamp in millisconds since unix epoch
+  uint64 received_timestamp = 1;
+  wifi_heartbeat_req_v1 report = 2;
+}
+
+// mapper attach report output by ingestor, tagged with received_timestamp
+message mapper_attach_ingest_report_v1 {
+  // timestamp in millisconds since unix epoch
+  uint64 received_timestamp = 1;
+  mapper_attach report = 2;
+}
+
+message subscriber_location_req_v1 {
+  // id of the subscriber which submitted the location report
+  bytes subscriber_id = 1;
+  // Timestamp of the subscriber location sharing event in seconds from the unix
+  // epoch
+  uint64 timestamp = 2;
+  // pubkey of the carrier identity service
+  bytes carrier_pub_key = 3;
+  // signed payload of the carrier identity service
+  bytes signature = 4;
+}
+
+message subscriber_location_resp_v1 { string id = 1; }
+
+message subscriber_location_ingest_report_v1 {
+  // Timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  subscriber_location_req_v1 report = 2;
+}
+
+message radio_threshold_report_req_v1 {
+  // the id of the radio which has met the coverage threshold requirements
+  // CBRS radios only
+  string cbsd_id = 1;
+  // The onchain address of the gateway which has met the coverage
+  // threshold requirements
+  bytes hotspot_pubkey = 2;
+  // the threshold value representing the amount of transferred bytes the
+  // minimum number of subscribers as defined by subscriber_threshold have
+  // exceeded
+  uint64 bytes_threshold = 3;
+  // the threshold value representing the minimum number of subscribers
+  // that have exceeded the bytes_threshold for the hotspot
+  uint32 subscriber_threshold = 4;
+  // Unix timestamp in seconds when the thresholds were exceeded
+  uint64 threshold_timestamp = 5;
+  // pubkey of the carrier identity service
+  bytes carrier_pub_key = 6;
+  // signed payload of the carrier identity service
+  bytes signature = 7;
+}
+
+message radio_threshold_report_resp_v1 { string id = 1; }
+
+message radio_threshold_ingest_report_v1 {
+  // Timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  radio_threshold_report_req_v1 report = 2;
+}
+
+enum radio_threshold_report_verification_status {
+  threshold_report_status_valid = 0;
+  // used to grandfather in hotspots that have received boosting
+  // prior to the data component of hip84 going live
+  threshold_report_status_legacy_valid = 1;
+  threshold_report_status_invalid_carrier_key = 2;
+}
+
+message verified_radio_threshold_ingest_report_v1 {
+  // the verified report
+  radio_threshold_ingest_report_v1 report = 1;
+  // the status determined by the verification
+  radio_threshold_report_verification_status status = 2;
+  // Timestamp at which verification was determined, in milliseconds since unix
+  // epoch
+  uint64 timestamp = 3;
+}
+
+enum invalidated_threshold_reason {
+  invalidated_threshold_reason_radio_moved = 0;
+}
+
+message invalidated_radio_threshold_report_req_v1 {
+  // the id of the radio which thresholds are invalidated
+  string cbsd_id = 1;
+  // The onchain address of the gateway
+  bytes hotspot_pubkey = 2;
+  // the reason the thresholds are invalidated
+  invalidated_threshold_reason reason = 3;
+  // Timestamp in milliseconds since unix epoch
+  // of when the thresholds were invalidated
+  uint64 timestamp = 4;
+  // pubkey of the carrier identity service
+  bytes carrier_pub_key = 5;
+  // signed payload of the carrier identity service
+  bytes signature = 6;
+}
+
+message invalidated_radio_threshold_report_resp_v1 { string id = 1; }
+
+message invalidated_radio_threshold_ingest_report_v1 {
+  // Timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  invalidated_radio_threshold_report_req_v1 report = 2;
+}
+
+enum invalidated_radio_threshold_report_verification_status {
+  invalidated_threshold_report_status_valid = 0;
+  invalidated_threshold_report_status_invalid_carrier_key = 1;
+}
+
+message verified_invalidated_radio_threshold_ingest_report_v1 {
+  // the verified report
+  invalidated_radio_threshold_ingest_report_v1 report = 1;
+  // the status determined by the verification
+  invalidated_radio_threshold_report_verification_status status = 2;
+  // Timestamp at which verification was determined, in milliseconds since unix
+  // epoch
+  uint64 timestamp = 3;
+}
+
+enum signal_level {
+  NONE = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+}
+
+// Radio signal level and power in the h3 hex.
+message radio_hex_signal_level {
+  // H3 resolution 12 hex tile covered by the radio
+  string location = 1;
+  signal_level signal_level = 2;
+  // Signal power of the radio in ddBm
+  sint32 signal_power = 3;
+}
+
+message coverage_object_req_v1 {
+  bytes pub_key = 1;
+  bytes uuid = 2;
+  oneof key_type {
+    // For CBRS radio
+    string cbsd_id = 3;
+    // For WiFi radio
+    bytes hotspot_key = 4;
+  }
+  // Timestamp in seconds since the unix epoch indicating the start of coverage
+  uint64 coverage_claim_time = 5;
+  repeated radio_hex_signal_level coverage = 6;
+  bool indoor = 7;
+  // Trust score (0.0 - 1.0) multiplied by 1000
+  uint32 trust_score = 8;
+  bytes signature = 9;
+}
+
+message coverage_object_resp_v1 { string id = 1; }
+
+// Coverage object report output by ingestor, tagged with received_timestamp
+message coverage_object_ingest_report_v1 {
+  // Timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  coverage_object_req_v1 report = 2;
+}
+
+enum subscriber_report_verification_status {
+  valid = 0;
+  invalid_subscriber_id = 1;
+  invalid_carrier_key = 2;
+}
+
+message verified_subscriber_location_ingest_report_v1 {
+  // the verified report
+  subscriber_location_ingest_report_v1 report = 1;
+  // the status determined by the verification
+  subscriber_report_verification_status status = 2;
+  // Timestamp at which verification was determined, in milliseconds since unix
+  // epoch
+  uint64 timestamp = 3;
+}
+
+service poc_mobile {
+  rpc submit_speedtest(speedtest_req_v1) returns (speedtest_resp_v1);
+  rpc submit_cell_heartbeat(cell_heartbeat_req_v1)
+      returns (cell_heartbeat_resp_v1);
+  rpc submit_wifi_heartbeat(wifi_heartbeat_req_v1)
+      returns (wifi_heartbeat_resp_v1);
+  rpc submit_data_transfer_session(data_transfer_session_req_v1)
+      returns (data_transfer_session_resp_v1);
+  rpc submit_subscriber_location(subscriber_location_req_v1)
+      returns (subscriber_location_resp_v1);
+  rpc submit_coverage_object(coverage_object_req_v1)
+      returns (coverage_object_resp_v1);
+  rpc submit_threshold_report(radio_threshold_report_req_v1)
+      returns (radio_threshold_report_resp_v1);
+  rpc submit_invalidated_threshold_report(
+      invalidated_radio_threshold_report_req_v1)
+      returns (invalidated_radio_threshold_report_resp_v1);
+}
+
+message file_info {
+  string key = 1;
+  file_type file_type = 2;
+  uint64 timestamp = 3;
+  uint64 size = 4;
+}
+
+message processed_files { repeated file_info files = 1; }
+
+message coverage_object_v1 {
+  coverage_object_req_v1 coverage_object = 1;
+  coverage_object_validity validity = 2;
+}
+
+enum coverage_object_validity {
+  coverage_object_validity_valid = 0;
+  coverage_object_validity_invalid_pub_key = 1;
+}
+
+message heartbeat {
+  // applicable to cell heartbeats only
+  string cbsd_id = 1;
+  bytes pub_key = 2;
+  // this value is the heartbeat_multiplier * location_trust_score_multiplier
+  float reward_multiplier = 3 [ deprecated = true ];
+  uint64 timestamp = 4;
+  cell_type cell_type = 5;
+  heartbeat_validity validity = 6;
+  double lat = 7;
+  double lon = 8;
+  // UUID of the coverage object associated with this heartbeat
+  bytes coverage_object = 9;
+  // Timestamp of location validation in seconds from unix epoch
+  // applicable to wifi heartbeats only
+  uint64 location_validation_timestamp = 10;
+  // Distance in meters to the asserted location of the gateway_reward
+  // at the time of heartbeat verification
+  uint64 distance_to_asserted = 11;
+  // only used for wifi radios, all others should have a value of 1.0
+  // value is 0.0 to 1.0 multiplied by 1000
+  uint32 location_trust_score_multiplier = 12;
+}
+
+enum heartbeat_validity {
+  heartbeat_validity_valid = 0;
+  heartbeat_validity_gateway_owner_not_found = 1 [ deprecated = true ];
+  heartbeat_validity_heartbeat_outside_range = 2;
+  heartbeat_validity_bad_cbsd_id = 3;
+  heartbeat_validity_not_operational = 4;
+  // Gateway not found on the blockchain
+  heartbeat_validity_gateway_not_found = 5;
+  // No such coverage object with that UUID
+  heartbeat_validity_no_such_coverage_object = 6;
+  // Invalid coverage object UUID (cbsd_id did not match)
+  heartbeat_validity_bad_coverage_object = 7;
+  // Invalid latitude and/or longitude
+  heartbeat_validity_invalid_lat_lon = 8;
+  // Heartbeat is too distant from the coverage object's hex coverage
+  heartbeat_validity_too_far_from_coverage = 9;
+  // Gateway is not asserted
+  heartbeat_validity_gateway_not_asserted = 10;
+  // heartbeat location is outside supported locations
+  heartbeat_validity_unsupported_location = 11;
+}
+
+message seniority_update {
+  oneof key_type {
+    // For CBRS radio
+    string cbsd_id = 1;
+    // For WiFi radio
+    bytes hotspot_key = 2;
+  }
+  // Timestamp of the new seniority for the radio
+  uint64 new_seniority_timestamp = 3 [ deprecated = true ];
+  seniority_update_reason reason = 4;
+  // Timestamp in milliseconds of the new seniority for the radio
+  uint64 new_seniority_timestamp_ms = 5;
+}
+
+enum seniority_update_reason {
+  // We haven't seen a heartbeat for 72 hours
+  seniority_update_reason_heartbeat_not_seen = 0;
+  // A new coverage object replaces the old seniority
+  seniority_update_reason_new_coverage_claim_time = 1;
+}
+
+message speedtest_avg {
+  bytes pub_key = 1;
+  /// bytes/sec
+  uint64 upload_speed_avg_bps = 2;
+  /// bytes/sec
+  uint64 download_speed_avg_bps = 3;
+  uint32 latency_avg_ms = 4;
+  speedtest_avg_validity validity = 5;
+  repeated speedtest speedtests = 6;
+  /// Unix timestamp (seconds since 1970) of when the average was calculated
+  uint64 timestamp = 7;
+  float reward_multiplier = 8;
+}
+
+message speedtest {
+  uint64 upload_speed_bps = 1;
+  uint64 download_speed_bps = 2;
+  uint32 latency_ms = 3;
+  uint64 timestamp = 4;
+}
+
+message radio_reward_share {
+  option deprecated = true;
+  /// Public key of the owner of the radio
+  bytes owner_key = 1;
+  /// Public key of the hotspot of the radio
+  bytes hotspot_key = 2;
+  /// cbsd Id of the radio
+  string cbsd_id = 3;
+  /// Amount rewarded to the owner of the radio
+  uint64 amount = 4;
+  /// Unix timestamp in seconds of the start of the reward period
+  uint64 start_epoch = 5;
+  /// Unix timestamp in seconds of the end of the reward period
+  uint64 end_epoch = 6;
+}
+
+message radio_reward {
+  // Public key of the hotspot of the radio
+  bytes hotspot_key = 1;
+  // cbsd Id of the radio
+  string cbsd_id = 2;
+  // Amount credited to the hotspot for data transfer in bones
+  // This value will always be zero
+  uint64 dc_transfer_reward = 3 [ deprecated = true ];
+  // Amount credited to the hotspot for poc
+  uint64 poc_reward = 4;
+  // Accumulated coverage points for the radio
+  uint64 coverage_points = 5;
+  // Seniority timestamp for this radio in seconds since the unix epoch
+  uint64 seniority_timestamp = 6;
+  // UUID of the coverage object used to reward this radio
+  bytes coverage_object = 7;
+  // only used for wifi radios, all others should have a value of 1.0
+  // value is 0.0 to 1.0 multiplied by 1000
+  uint32 location_trust_score_multiplier = 8;
+  // based on speedtest averages of speedtests during 48 hour period from end of
+  // rewardable period
+  // value is 0.0 to 1.0 multiplied by 1000
+  uint32 speedtest_multiplier = 9;
+  // list of all boosted hexes covered by this radio
+  repeated boosted_hex boosted_hexes = 10;
+}
+
+message boosted_hex {
+  // The res12 h3 index of the boosted hex
+  uint64 location = 1;
+  // the multiplier applied to this hex
+  uint32 multiplier = 2;
+}
+
+message gateway_reward {
+  /// Public key of the hotspot
+  bytes hotspot_key = 1;
+  /// Amount awarded for dc transfer
+  uint64 dc_transfer_reward = 2;
+  /// count of rewardable bytes transfered
+  uint64 rewardable_bytes = 3;
+  /// Price of MOBILE @ 10^6 used when calculating rewards
+  uint64 price = 4;
+}
+
+message subscriber_reward {
+  // id of the subscriber to which the reward will be credited
+  bytes subscriber_id = 1;
+  /// Amount in bones credited to the subscriber for location sharing
+  uint64 discovery_location_amount = 2;
+}
+
+message service_provider_reward {
+  // rewardable entity id of the service provider to which the reward will be
+  // credited
+  service_provider service_provider_id = 1;
+  /// Amount in bones rewarded
+  uint64 amount = 2;
+}
+
+enum unallocated_reward_type {
+  unallocated_reward_type_poc = 0;
+  unallocated_reward_type_discovery_location = 1;
+  unallocated_reward_type_mapper = 2;
+  unallocated_reward_type_service_provider = 3;
+  unallocated_reward_type_oracle = 4;
+  unallocated_reward_type_data = 5;
+}
+
+message unallocated_reward {
+  // the reward type representing a reward category to which an unallocated
+  // amount exists
+  unallocated_reward_type reward_type = 1;
+  /// Amount in bones unallocated
+  uint64 amount = 2;
+}
+
+message mobile_reward_share {
+  /// Unix timestamp in seconds of the start of the reward period
+  uint64 start_period = 1;
+  /// Unix timestamp in seconds of the end of the reward period
+  uint64 end_period = 2;
+  /// Reward allocation for this share
+  oneof reward {
+    radio_reward radio_reward = 3;
+    gateway_reward gateway_reward = 4;
+    subscriber_reward subscriber_reward = 5;
+    service_provider_reward service_provider_reward = 6;
+    unallocated_reward unallocated_reward = 7;
+  }
+}
+
+enum speedtest_avg_validity {
+  speedtest_avg_validity_valid = 0;
+  speedtest_avg_validity_too_few_samples = 1;
+  speedtest_avg_validity_slow_download_speed = 2;
+  speedtest_avg_validity_slow_upload_speed = 3;
+  speedtest_avg_validity_high_latency = 4;
+}
+
+enum file_type {
+  file_type_heartbeat = 0;
+  file_type_speedtest = 1;
+}
+
+enum cell_type {
+  nova436h = 0;
+  nova430i = 1;
+  neutrino430 = 2;
+  sercomm_indoor = 3;
+  sercomm_outdoor = 4;
+  cell_type_none = 5;
+  nova_generic_wifi_indoor = 6;
+  nova_generic_wifi_outdoor = 7;
+}
+
+message data_transfer_session_req_v1 {
+  /// data_transfer_event represents traffic usage happening on a hotspot
+  /// it is traffic quota or timer based
+  /// it is securely created and signed by hotspot
+  data_transfer_event data_transfer_usage = 1;
+  /// this decision is done by OCS like system
+  bool reward_cancelled = 2;
+  /// Online Charging System is part of teleco stack which is able
+  /// to make a decision about data transfer and reward
+  bytes pub_key = 3;
+  bytes signature = 4;
+  uint64 rewardable_bytes = 5;
+}
+
+message data_transfer_event {
+  bytes pub_key = 1;
+  uint64 upload_bytes = 2;
+  uint64 download_bytes = 3;
+  data_transfer_radio_access_technology radio_access_technology = 4;
+  string event_id = 5;
+  bytes payer = 6;
+
+  // Timestamp in seconds since the epoch
+  uint64 timestamp = 7;
+  bytes signature = 8;
+}
+
+enum data_transfer_radio_access_technology {
+  UTRAN = 0;
+  GERAN = 1;
+  WLAN = 2;
+  GAN = 3;
+  HSPA_Evolution = 4;
+  EUTRAN = 5;
+}
+
+message data_transfer_session_resp_v1 { string id = 1; }
+
+message data_transfer_session_ingest_report_v1 {
+  // timestamp in milliseconds since unix epoch
+  uint64 received_timestamp = 1;
+  data_transfer_session_req_v1 report = 2;
+}
+
+message invalid_data_transfer_ingest_report_v1 {
+  enum data_transfer_ingest_report_status {
+    valid = 0;
+    cancelled = 1;
+    invalid_gateway_key = 2;
+    invalid_routing_key = 3;
+    duplicate = 4;
+  }
+  // the invalid ingest report
+  data_transfer_session_ingest_report_v1 report = 1;
+  // the invalid reason as determined by the verifications
+  data_transfer_ingest_report_status reason = 2;
+  // Timestamp at which verification was determined, in milliseconds since unix
+  // epoch
+  uint64 timestamp = 3;
+}
+
+message oracle_boosting_report_v1 {
+  // UUID of the coverage object for the given hex
+  bytes coverage_object = 1;
+  // Assignments of the hexes
+  repeated oracle_boosting_hex_assignment assignments = 2;
+  // Timestamp of when the oracle boosting report was made in seconds since the
+  // epoch
+  uint64 timestamp = 3;
+}
+
+message oracle_boosting_hex_assignment {
+  enum assignment {
+    a = 0;
+    b = 1;
+    c = 2;
+  }
+  // H3 resolution 12 hex tile
+  string location = 1;
+  // Multiplier derived from the assignment, value is 0.0 to 1.0 multiplied by
+  // 1000
+  uint32 assignment_multiplier = 2;
+  // Urbanized assignment
+  assignment urbanized = 3;
+}
